@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: "https://taskflow-pro-g8di.onrender.com/api",
 });
 
 // Get all tasks
