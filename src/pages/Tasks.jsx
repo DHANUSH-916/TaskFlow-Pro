@@ -1,74 +1,197 @@
 import { useState, useEffect } from "react";
+import {
+  getTasks,
+  createTask,
+  updateTask,
+  deleteTask as deleteTaskApi,
+} from "../api/taskApi";
+import { toast } from "react-toastify";
 
 function Tasks() {
-  const [tasks, setTasks] = useState(() => {
-    const saved = localStorage.getItem("tasks");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [tasks, setTasks] = useState([]);
 
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("Medium");
   const [editingId, setEditingId] = useState(null);
 
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [priorityFilter, setPriorityFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("Newest");
+
   useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, [tasks]);
+  loadTasks();
+}, []);
 
-  const saveTask = () => {
-    if (title.trim() === "") {
-      alert("Enter a task title");
-      return;
-    }
+const loadTasks = async () => {
+  try {
+    const response = await getTasks();
+    setTasks(response.data);
+  } catch (error) {
+    toast.error("Failed to load tasks");
+  }
+};
 
+  const saveTask = async () => {
+  if (title.trim() === "") {
+    toast.error("Enter a task title");
+    return;
+  }
+
+  try {
     if (editingId) {
-      setTasks(
-        tasks.map((task) =>
-          task.id === editingId
-            ? { ...task, title, priority }
-            : task
-        )
-      );
+      await updateTask(editingId, {
+        title,
+        priority,
+      });
+
+      toast.success("Task Updated");
       setEditingId(null);
     } else {
-      setTasks([
-        ...tasks,
-        {
-          id: Date.now(),
-          title,
-          priority,
-          status: "Pending",
-        },
-      ]);
+      await createTask({
+        title,
+        priority,
+        status: "Pending",
+      });
+
+      toast.success("Task Added");
     }
 
     setTitle("");
     setPriority("Medium");
-  };
 
+    loadTasks();
+
+  } catch (error) {
+    toast.error("Something went wrong");
+  }
+};
   const editTask = (task) => {
     setTitle(task.title);
     setPriority(task.priority);
-    setEditingId(task.id);
+    setEditingId(task._id);
   };
 
-  const deleteTask = (id) => {
-    setTasks(tasks.filter((task) => task.id !== id));
-  };
+  const deleteTask = async (id) => {
+  const confirmDelete = window.confirm(
+    "Are you sure you want to delete this task?"
+  );
 
-  const completeTask = (id) => {
-    setTasks(
-      tasks.map((task) =>
-        task.id === id
-          ? { ...task, status: "Completed" }
-          : task
-      )
-    );
-  };
+  if (!confirmDelete) return;
+
+  try {
+    await deleteTaskApi(id);
+
+    toast.success("Task Deleted");
+
+    loadTasks();
+  } catch (error) {
+    toast.error("Delete Failed");
+  }
+};
+
+  const completeTask = async (task) => {
+  try {
+    await updateTask(task._id, {
+      title: task.title,
+      priority: task.priority,
+      status: "Completed",
+    });
+
+    toast.success("Task Completed");
+
+    loadTasks();
+  } catch (error) {
+    toast.error("Failed to update task");
+  }
+};
+
+const filteredTasks = tasks
+  .filter((task) => {
+  const matchesSearch = task.title
+    .toLowerCase()
+    .includes(search.toLowerCase());
+
+  const matchesStatus =
+    statusFilter === "All" ||
+    task.status === statusFilter;
+
+  const matchesPriority =
+    priorityFilter === "All" ||
+    task.priority === priorityFilter;
 
   return (
+  matchesSearch &&
+  matchesStatus &&
+  matchesPriority
+);
+})
+.sort((a, b) => {
+  if (sortBy === "Newest") {
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  }
+
+  if (sortBy === "Oldest") {
+    return new Date(a.createdAt) - new Date(b.createdAt);
+  }
+
+  if (sortBy === "Priority") {
+    const order = {
+      High: 1,
+      Medium: 2,
+      Low: 3,
+    };
+
+    return order[a.priority] - order[b.priority];
+  }
+
+  return 0;
+});
+
+return (
     <div className="container mt-5">
 
       <h2>📋 Task Management</h2>
+      <div className="row mt-4 mb-3">
+
+  <div className="col-md-3">
+  <select
+    className="form-select"
+    value={sortBy}
+    onChange={(e) => setSortBy(e.target.value)}
+  >
+    <option>Newest</option>
+    <option>Oldest</option>
+    <option>Priority</option>
+  </select>
+</div>
+
+  <div className="col-md-4">
+    <select
+      className="form-select"
+      value={statusFilter}
+      onChange={(e) => setStatusFilter(e.target.value)}
+    >
+      <option>All</option>
+      <option>Pending</option>
+      <option>Completed</option>
+    </select>
+  </div>
+
+  <div className="col-md-4">
+    <select
+      className="form-select"
+      value={priorityFilter}
+      onChange={(e) => setPriorityFilter(e.target.value)}
+    >
+      <option>All</option>
+      <option>High</option>
+      <option>Medium</option>
+      <option>Low</option>
+    </select>
+  </div>
+
+</div>
 
       <div className="card shadow p-4 mt-4">
 
@@ -132,16 +255,21 @@ function Tasks() {
                 <tr>
 
                   <td colSpan="4" className="text-center">
-                    No Tasks
+                    <div className="text-center py-4">
+  <h5>No Tasks Found</h5>
+  <p className="text-muted">
+    Create your first task to get started.
+  </p>
+</div>
                   </td>
 
                 </tr>
 
               ) : (
 
-                tasks.map((task) => (
+                filteredTasks.map((task) => (
 
-                  <tr key={task.id}>
+                  <tr key={task._id}>
 
                     <td>{task.title}</td>
 
@@ -170,14 +298,15 @@ function Tasks() {
 
                       <button
                         className="btn btn-success btn-sm me-2"
-                        onClick={() => completeTask(task.id)}
+                        disabled={task.status === "Completed"}
+                        onClick={() => completeTask(task)}
                       >
-                        Complete
+                        {task.status === "Completed" ? "Completed" : "Complete"}
                       </button>
 
                       <button
                         className="btn btn-danger btn-sm"
-                        onClick={() => deleteTask(task.id)}
+                        onClick={() => deleteTask(task._id)}
                       >
                         Delete
                       </button>
