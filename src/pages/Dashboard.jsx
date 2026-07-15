@@ -63,27 +63,27 @@ const highPriority = tasks.filter(
 
         <div>
 
-  <a
-    href="https://github.com/DHANUSH-916/TaskFlow-Pro"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="btn btn-dark me-2"
-  >
-    GitHub
-  </a>
+          <a
+            href="https://github.com/DHANUSH-916/TaskFlow-Pro"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-dark me-2"
+          >
+            GitHub
+          </a>
 
-  <Link to="/tasks" className="btn btn-primary me-2">
-    + Manage Tasks
-  </Link>
+          <Link to="/tasks" className="btn btn-primary me-2">
+            + Manage Tasks
+          </Link>
 
-  <button
-    className="btn btn-danger"
-    onClick={logout}
-  >
-    Logout
-  </button>
+          <button
+            className="btn btn-danger"
+            onClick={logout}
+      >
+            Logout
+      </button>
 
-</div>
+
 
       </div>
 
